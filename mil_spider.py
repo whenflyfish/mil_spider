@@ -270,6 +270,28 @@ class ZGJSProcessor:
             # time.sleep(1)
             self.download_video(v[0],v[1],semlock)
 
+
+
+    def crawler_keyword(self,keyword = "china"):
+        driver = self.get_driver()
+        url = "https://eng.mil.ru/en/news_page/country.htm"
+        try:
+            driver.get(url)
+        except WebDriverException:
+            print("网页打开错误，重新尝试")
+        driver.find_element(By.XPATH, "//input[@class='searchfield']").send_keys(keyword)
+        time.sleep(3)
+        driver.find_element(By.XPATH, "//input[@class='searchbutton']").click()
+        time.sleep(3)
+        list = driver.find_elements(By.XPATH, "//*[@id='center']/table/tbody/tr")
+        url_list = []
+        for i in list:
+            #print(i.get_attribute('textContent'))
+            url = i.find_element(By.TAG_NAME,'a').get_attribute("href")
+            print("url: ",url)
+            url_list.append(url)
+        self.get_data_list(url_list)
+
 if __name__ == '__main__':
     myZGJScrawler = ZGJSProcessor()
-    myZGJScrawler.crawler()
+    myZGJScrawler.crawler_keyword()

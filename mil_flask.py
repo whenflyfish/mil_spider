@@ -27,6 +27,16 @@ def mil():
     return "mil_ok"  # jsonify({"code": 1})
 
 
+@app.route('/mil/search', methods=["post", "get"])
+def mil_keyword():
+    keys = request.form.get("key")  # 调用者传参 ky
+    # 请求进来 输入爬取内容
+    # 爬虫程序
+    myZGJScrawler = ZGJSProcessor()
+    myZGJScrawler.crawler()
+    return "mil_ok"  # jsonify({"code": 1})
+
+
 if __name__ == '__main__':
     app.run(port=5555, debug=True, host='127.0.0.1')
     http_server = WSGIServer(('127.0.0.1', 5555), app, handler_class=WebSocketHandler)
