@@ -30,10 +30,11 @@ def mil():
 @app.route('/mil/search', methods=["post", "get"])
 def mil_keyword():
     keys = request.form.get("key")  # 调用者传参 ky
+    # keys = 'Russia'
     # 请求进来 输入爬取内容
     # 爬虫程序
     myZGJScrawler = ZGJSProcessor()
-    myZGJScrawler.crawler()
+    myZGJScrawler.crawler_keyword(keys)
     return "mil_ok"  # jsonify({"code": 1})
 
 

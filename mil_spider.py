@@ -65,13 +65,14 @@ class ZGJSProcessor:
         #self.day_time = time.mktime(time.strptime("2022-03-17", "%Y-%m-%d"))
         self.day_time = time.mktime(time.strptime(time.strftime("%Y-%m-%d", time.localtime(now_time)), "%Y-%m-%d"))
         self.news_url_list = []
-        self.head = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.132 Safari/537.36'}
+        self.head = {'User-Agent': 'Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 101.0.4951.67 Safari / 537.36'}
+        # Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 101.0.4951.67 Safari / 537.36
         self.path = 'D:\data\spider\mil'
         basename = 'mil' + time.strftime("%Y%m%d", time.localtime(now_time))
         self.path = os.path.join(self.path, basename)
         self.image_name = 0
         self.video_name = 0
-        self.file_download_timeout = [2, 5, 10]
+        self.file_download_timeout = [20, 50, 100]
 
     def get_driver(self):
         driver = connectchrome()
@@ -192,16 +193,19 @@ class ZGJSProcessor:
 
     # 多线程下载图片
     def download_img(self, img_url, title, semlock):
-        try:
-            semlock.acquire()
-            paths = os.path.join(self.path, 'images/')
-            if not os.path.exists(paths):
-                os.makedirs(paths)
-            urllib.request.urlretrieve(img_url, '{0}{1}.jpg'.format(paths, str(title)))
-            print(img_url, " 下载完成")
-            semlock.release()
-        except:
-            print(img_url, " 爬取失败")
+        # try:
+        semlock.acquire()
+        paths = os.path.join(self.path, 'images/')
+        if not os.path.exists(paths):
+            os.makedirs(paths)
+        opener = urllib.request.build_opener()  # 实例化一个OpenerDirector
+        opener.addheaders = [('User-Agent','Mozilla / 5.0(Windows NT 10.0; Win64; x64) AppleWebKit / 537.36(KHTML, likeGecko) Chrome / 101.0.4951.67 Safari / 537.36')]  # 添加header,注意格式
+        urllib.request.install_opener(opener)  # 将OpenerDirector装进opener
+        urllib.request.urlretrieve(img_url, '{0}{1}.jpg'.format(paths, str(title)))
+        print(img_url, " 下载完成")
+        semlock.release()
+        # except:
+        #     print(img_url, " 爬取失败")
 
     def download_video(self, video_url, title,semlock):
         # print("爬取视频")
@@ -210,36 +214,36 @@ class ZGJSProcessor:
         # url = tree.xpath("//video/*/@src")
 
         #semlock.acquire()
-        try:
-            paths = os.path.join(self.path, 'video/')
-            if not os.path.exists(paths):
-                os.makedirs(paths)
-            paths = paths + title
-            s = requests.Session()
-            # 如果失败重试5次
-            s.mount(video_url,
-                    HTTPAdapter(max_retries=self.file_download_timeout[0]))
-            downloaded = requests.get(video_url, stream=True,headers=self.head,timeout = (self.file_download_timeout[1],self.file_download_timeout[2]))
-            # 获取视频总长度
-            length = float(downloaded.headers['content-length'])
-            with open(paths, 'wb') as f:
-                # f.write(downloaded.content)
-                '''
-                使用手动设置更新
-                total 设置总大小
-                initial 当前操作文件的大小
-                desc 进度条前的描述
-                ncols=120设置进度条显示长度  
-                nit_scale 如果设置，迭代的次数会自动按照十、百、千来添加前缀，默认为false
-                '''
-                pbar = tqdm(total=length, initial=os.path.getsize(paths), unit_scale=True, desc=paths, ncols=120)
-                for chuck in downloaded.iter_content(chunk_size=512):
-                    f.write(chuck)
-                    # 手动更新的大小
-                    pbar.update(512)
+        #try:
+        paths = os.path.join(self.path, 'video/')
+        if not os.path.exists(paths):
+            os.makedirs(paths)
+        paths = paths + title
+        s = requests.Session()
+        # 如果失败重试5次
+        s.mount(video_url,
+                HTTPAdapter(max_retries=self.file_download_timeout[0]))
+        downloaded = requests.get(video_url, stream=True,headers=self.head,timeout = (self.file_download_timeout[1],self.file_download_timeout[2]))
+        # 获取视频总长度
+        length = float(downloaded.headers['content-length'])
+        with open(paths, 'wb') as f:
+            # f.write(downloaded.content)
+            '''
+            使用手动设置更新
+            total 设置总大小
+            initial 当前操作文件的大小
+            desc 进度条前的描述
+            ncols=120设置进度条显示长度  
+            nit_scale 如果设置，迭代的次数会自动按照十、百、千来添加前缀，默认为false
+            '''
+            pbar = tqdm(total=length, initial=os.path.getsize(paths), unit_scale=True, desc=paths, ncols=120)
+            for chuck in downloaded.iter_content(chunk_size=512):
+                f.write(chuck)
+                # 手动更新的大小
+                pbar.update(512)
             #semlock.release()
-        except:
-            print(video_url," 爬取失败")
+        # except:
+        #     print(video_url," 爬取失败")
 
     def is_content(self, list):
         if len(list) == 0:
@@ -290,7 +294,23 @@ class ZGJSProcessor:
             url = i.find_element(By.TAG_NAME,'a').get_attribute("href")
             print("url: ",url)
             url_list.append(url)
-        self.get_data_list(url_list)
+        data_list, img_list, video_list = self.get_data_list(url_list)
+        self.save_data(data_list)
+        # 最大线程数
+        max_connections = 3
+        semlock = threading.BoundedSemaphore(max_connections)
+        for img in img_list:
+            print("图片url : ", img[0], img[1])
+            t = threading.Thread(target=self.download_img, args=(img[0], img[1], semlock))
+            t.start()
+            time.sleep(1)
+        for v in video_list:
+            print("视频url : ", v[0], v[1])
+            # t = threading.Thread(target=self.download_video, args=(v[0], v[1], semlock))
+            # t.start()
+            # time.sleep(1)
+            self.download_video(v[0], v[1], semlock)
+
 
 if __name__ == '__main__':
     myZGJScrawler = ZGJSProcessor()
